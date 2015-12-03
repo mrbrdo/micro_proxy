@@ -1,0 +1,24 @@
+	     micro_proxy - really small HTTP/HTTPS proxy
+
+micro_proxy is a very small HTTP/HTTPS proxy.  It runs from inetd,
+which means its performance is poor.  But for low-traffic sites,
+it's quite adequate.  It implements all the basic features of an
+HTTP/HTTPS proxy, in less than 500 lines of code.
+
+See the manual entry for more details.
+
+Files in this distribution:
+
+    README		this
+    Makefile		guess
+    micro_proxy.c	source file
+    micro_proxy.8	manual entry
+
+To build: If you're on a SysV-like machine (which includes old Linux systems
+but not new Linux systems), edit the Makefile and uncomment the SYSV_LIBS
+line.  Otherwise, just do a make.
+
+Feedback is welcome - send bug reports, enhancements, checks, money
+orders, etc. to the addresses below.
+
+    Jef Poskanzer  jef@mail.acme.com  http://www.acme.com/jef/
