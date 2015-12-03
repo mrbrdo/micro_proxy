@@ -283,6 +283,12 @@ proxy_ssl( int client, char* method, char* host, char* protocol, FILE* sockrfp, 
     char buf[10000];
     const char *connection_established = "HTTP/1.0 200 Connection established\r\n\r\n";
 
+    while ( get_line(client, buf, sizeof(buf)) > 0 )
+    {
+        if ( strcmp( buf, "\n" ) == 0 || strcmp( buf, "\r\n" ) == 0 )
+            break;
+    }
+
     /* Return SSL-proxy greeting header. */
     send(client, connection_established, strlen(connection_established), 0);
     /* Now forward SSL packets in both directions until done. */
