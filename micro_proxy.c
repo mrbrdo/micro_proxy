@@ -72,6 +72,12 @@ void error_die(const char *);
 int get_line(int, char *, int);
 int startup(u_short *);
 
+unsigned alarm_nop(unsigned seconds);
+unsigned alarm_nop(unsigned seconds)
+{
+    return 0;
+}
+
 #if defined(AF_INET6) && defined(IN6_IS_ADDR_V4MAPPED)
 #define USE_IPV6
 #endif
@@ -210,7 +216,7 @@ proxy_http( int client, char* method, char* path, char* protocol, FILE* sockrfp,
     long content_length, i;
 
     /* Send request. */
-    (void) alarm( TIMEOUT );
+    (void) alarm_nop( TIMEOUT );
     (void) fprintf( sockwfp, "%s %s %s\r\n", method, path, protocol );
     /* Forward the remainder of the request from the client. */
     content_length = -1;
@@ -219,7 +225,7 @@ proxy_http( int client, char* method, char* path, char* protocol, FILE* sockrfp,
         if ( strcmp( line, "\n" ) == 0 || strcmp( line, "\r\n" ) == 0 )
             break;
         (void) fputs( line, sockwfp );
-        (void) alarm( TIMEOUT );
+        (void) alarm_nop( TIMEOUT );
         trim( line );
         if ( strncasecmp( line, "Content-Length:", 15 ) == 0 )
             content_length = atol( &(line[15]) );
@@ -233,7 +239,7 @@ proxy_http( int client, char* method, char* path, char* protocol, FILE* sockrfp,
     (void) fflush( sockwfp );
 
     /* Forward the response back to the client. */
-    (void) alarm( TIMEOUT );
+    (void) alarm_nop( TIMEOUT );
     content_length = -1;
     first_line = 1;
     status = -1;
@@ -242,7 +248,7 @@ proxy_http( int client, char* method, char* path, char* protocol, FILE* sockrfp,
         if ( strcmp( line, "\n" ) == 0 || strcmp( line, "\r\n" ) == 0 )
             break;
         (void) send(client, line, strlen(line), 0);
-        (void) alarm( TIMEOUT );
+        (void) alarm_nop( TIMEOUT );
         trim( line );
         if ( first_line )
         {
@@ -267,7 +273,7 @@ proxy_http( int client, char* method, char* path, char* protocol, FILE* sockrfp,
         {
             send(client, &ich, 1, 0);
             if ( i % 10000 == 0 )
-                (void) alarm( TIMEOUT );
+                (void) alarm_nop( TIMEOUT );
         }
     }
 }
@@ -302,7 +308,7 @@ proxy_ssl( int client, char* method, char* host, char* protocol, FILE* sockrfp, 
         maxp1 = client_read_fd + 1;
     else
         maxp1 = server_read_fd + 1;
-    (void) alarm( 0 );
+    (void) alarm_nop( 0 );
     for (;;)
     {
         FD_ZERO( &fdset );
@@ -506,7 +512,7 @@ void *accept_request(void *_client)
     (void) signal( SIGALRM, sigcatch );
 
     /* Open the client socket to the real web server. */
-    (void) alarm( TIMEOUT );
+    (void) alarm_nop( TIMEOUT );
     sockfd = open_client_socket( client, host, port );
 
     if (sockfd >= 0) {
