@@ -357,7 +357,7 @@ send_error( int client, int status, char* title, char* extra_header, char* text 
 {
     char buf[10000];
     send_headers( client, status, title, extra_header, "text/html", -1, -1 );
-    (void) sprintf( buf, "\
+    (void) snprintf( buf, 10000, "\
 <!DOCTYPE html PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\" \"http://www.w3.org/TR/html4/loose.dtd\">\n\
 <html>\n\
   <head>\n\
@@ -368,9 +368,9 @@ send_error( int client, int status, char* title, char* extra_header, char* text 
     <h4>%d %s</h4>\n\n",
                     status, title, status, title );
     send(client, buf, strlen(buf), 0);
-    (void) sprintf( buf, "%s\n\n", text );
+    (void) snprintf( buf, 10000, "%s\n\n", text );
     send(client, buf, strlen(buf), 0);
-    (void) sprintf( buf, "\
+    (void) snprintf( buf, 10000, "\
     <hr>\n\
     <address><a href=\"%s\">%s</a></address>\n\
   </body>\n\
@@ -387,37 +387,35 @@ send_headers( int client, int status, char* title, char* extra_header, char* mim
     char timebuf[100];
     char buf[10000];
 
-
+    snprintf( buf, 10000, "%s %d %s\r\n", PROTOCOL, status, title );
     send(client, buf, strlen(buf), 0);
-    sprintf( buf, "%s %d %s\r\n", PROTOCOL, status, title );
-    send(client, buf, strlen(buf), 0);
-    sprintf( buf, "Server: %s\r\n", SERVER_NAME );
+    snprintf( buf, 10000, "Server: %s\r\n", SERVER_NAME );
     send(client, buf, strlen(buf), 0);
     now = time( (time_t*) 0 );
     (void) strftime( timebuf, sizeof(timebuf), RFC1123FMT, gmtime( &now ) );
-    sprintf( buf, "Date: %s\r\n", timebuf );
+    snprintf( buf, 10000, "Date: %s\r\n", timebuf );
     send(client, buf, strlen(buf), 0);
     if ( extra_header != (char*) 0 ) {
-        sprintf( buf, "%s\r\n", extra_header );
+        snprintf( buf, 10000, "%s\r\n", extra_header );
         send(client, buf, strlen(buf), 0);
     }
     if ( mime_type != (char*) 0 ) {
-        sprintf( buf, "Content-Type: %s\r\n", mime_type );
+        snprintf( buf, 10000, "Content-Type: %s\r\n", mime_type );
         send(client, buf, strlen(buf), 0);
     }
     if ( length >= 0 ) {
-        sprintf( buf, "Content-Length: %d\r\n", length );
+        snprintf( buf, 10000, "Content-Length: %d\r\n", length );
         send(client, buf, strlen(buf), 0);
     }
     if ( mod != (time_t) -1 )
     {
         (void) strftime( timebuf, sizeof(timebuf), RFC1123FMT, gmtime( &mod ) );
-        sprintf( buf, "Last-Modified: %s\r\n", timebuf );
+        snprintf( buf, 10000, "Last-Modified: %s\r\n", timebuf );
         send(client, buf, strlen(buf), 0);
     }
-    sprintf( buf, "Connection: close\r\n" );
+    snprintf( buf, 10000, "Connection: close\r\n" );
     send(client, buf, strlen(buf), 0);
-    sprintf( buf, "\r\n" );
+    snprintf( buf, 10000, "\r\n" );
     send(client, buf, strlen(buf), 0);
 }
 
@@ -547,15 +545,15 @@ void bad_request(int client)
 {
     char buf[1024];
 
-    sprintf(buf, "HTTP/1.0 400 BAD REQUEST\r\n");
+    snprintf(buf, 1024, "HTTP/1.0 400 BAD REQUEST\r\n");
     send(client, buf, strlen(buf), 0);
-    sprintf(buf, "Content-type: text/html\r\n");
+    snprintf(buf, 1024, "Content-type: text/html\r\n");
     send(client, buf, strlen(buf), 0);
-    sprintf(buf, "\r\n");
+    snprintf(buf, 1024, "\r\n");
     send(client, buf, strlen(buf), 0);
-    sprintf(buf, "<P>Your browser sent a bad request, ");
+    snprintf(buf, 1024, "<P>Your browser sent a bad request, ");
     send(client, buf, strlen(buf), 0);
-    sprintf(buf, "such as a POST without a Content-Length.\r\n");
+    snprintf(buf, 1024, "such as a POST without a Content-Length.\r\n");
     send(client, buf, strlen(buf), 0);
 }
 
