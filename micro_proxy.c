@@ -55,8 +55,8 @@
 
 /* Forwards. */
 static int open_client_socket( int client, char* hostname, unsigned short port );
-static void proxy_http( int client, char* method, char* path, char* protocol, FILE* sockrfp, FILE* sockwfp );
-static void proxy_ssl( int client, char* method, char* host, char* protocol, FILE* sockrfp, FILE* sockwfp );
+static void proxy_http( int client, char* method, char* path, char* protocol, char* headers, FILE* sockrfp, FILE* sockwfp );
+static void proxy_ssl( int client, char* method, char* host, char* protocol, char* headers, FILE* sockrfp, FILE* sockwfp );
 static void sigcatch( int sig );
 static void trim( char* line );
 static void send_error( int client, int status, char* title, char* extra_header, char* text );
@@ -202,30 +202,34 @@ ok:
 
 
 static void
-proxy_http( int client, char* method, char* path, char* protocol, FILE* sockrfp, FILE* sockwfp )
+proxy_http( int client, char* method, char* path, char* protocol, char* headers, FILE* sockrfp, FILE* sockwfp )
 {
     char line[10000], protocol2[10000], comment[10000];
     const char *connection_close = "Connection: close\r\n";
     int first_line, status, ich;
     long content_length, i;
+    char* headerLine = headers;
 
     /* Send request. */
     (void) alarm( TIMEOUT );
     (void) fprintf( sockwfp, "%s %s %s\r\n", method, path, protocol );
     /* Forward the remainder of the request from the client. */
-    content_length = -1;
-    while ( get_line(client, line, sizeof(line)) > 0 )
-    {
-        if ( strcmp( line, "\n" ) == 0 || strcmp( line, "\r\n" ) == 0 )
-            break;
-        (void) fputs( line, sockwfp );
-        (void) alarm( TIMEOUT );
-        trim( line );
-        if ( strncasecmp( line, "Content-Length:", 15 ) == 0 )
-            content_length = atol( &(line[15]) );
-    }
-    (void) fputs( line, sockwfp );
+    fputs( headers, sockwfp );
     (void) fflush( sockwfp );
+
+    content_length = -1;
+    while ( headerLine )
+    {
+        char* nextLine = strchr(headerLine, '\n');
+        if (nextLine) *nextLine = '\0';
+        if ( strncasecmp( headerLine, "Content-Length:", 15 ) == 0 )
+        {
+            trim( headerLine );
+            content_length = atol( &(headerLine[15]) );
+        }
+        headerLine = nextLine ? (nextLine + 1) : NULL;
+    }
+
     /* If there's content, forward that too. */
     if ( content_length != -1 )
         for ( i = 0; i < content_length && ( recv(client, &ich, 1, 0) ) > 0; ++i )
@@ -274,7 +278,7 @@ proxy_http( int client, char* method, char* path, char* protocol, FILE* sockrfp,
 
 
 static void
-proxy_ssl( int client, char* method, char* host, char* protocol, FILE* sockrfp, FILE* sockwfp )
+proxy_ssl( int client, char* method, char* host, char* protocol, char* headers, FILE* sockrfp, FILE* sockwfp )
 {
     int client_read_fd, server_read_fd, client_write_fd, server_write_fd;
     struct timeval timeout;
@@ -282,12 +286,6 @@ proxy_ssl( int client, char* method, char* host, char* protocol, FILE* sockrfp, 
     int maxp1, r;
     char buf[10000];
     const char *connection_established = "HTTP/1.0 200 Connection established\r\n\r\n";
-
-    while ( get_line(client, buf, sizeof(buf)) > 0 )
-    {
-        if ( strcmp( buf, "\n" ) == 0 || strcmp( buf, "\r\n" ) == 0 )
-            break;
-    }
 
     /* Return SSL-proxy greeting header. */
     send(client, connection_established, strlen(connection_established), 0);
@@ -435,11 +433,12 @@ void *accept_request(void *_client)
     int client = (int) (long) _client;
     int numchars;
 
-    char line[10000], method[10000], url[10000], protocol[10000], host[10000], path[10000];
+    char line[10000], method[10000], url[10000], protocol[10000], host[10000], path[10000], headers[20000];
     unsigned short port;
     int iport;
     int sockfd;
     int ssl;
+    int headers_len = 0;
     FILE* sockrfp;
     FILE* sockwfp;
 
@@ -505,6 +504,19 @@ void *accept_request(void *_client)
     /* Get ready to catch timeouts.. */
     (void) signal( SIGALRM, sigcatch );
 
+    /* Read headers */
+    (void) alarm( TIMEOUT );
+    while ( get_line(client, line, sizeof(line)) > 0 )
+    {
+        int line_len = strlen(line);
+        (void) alarm( TIMEOUT );
+        memcpy(&headers[headers_len], line, line_len);
+        headers_len += line_len;
+        if ( strcmp( line, "\n" ) == 0 || strcmp( line, "\r\n" ) == 0 )
+            break;
+    }
+    headers[headers_len] = '\0';
+
     /* Open the client socket to the real web server. */
     (void) alarm( TIMEOUT );
     sockfd = open_client_socket( client, host, port );
@@ -515,9 +527,9 @@ void *accept_request(void *_client)
         sockwfp = fdopen( sockfd, "w" );
 
         if ( ssl )
-            proxy_ssl( client, method, host, protocol, sockrfp, sockwfp );
+            proxy_ssl( client, method, host, protocol, headers, sockrfp, sockwfp );
         else
-            proxy_http( client, method, path, protocol, sockrfp, sockwfp );
+            proxy_http( client, method, path, protocol, headers, sockrfp, sockwfp );
 
         /* Done. */
         (void) close( sockfd );
